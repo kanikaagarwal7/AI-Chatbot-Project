@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>AI Chatbot</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+  <div class="app">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <h2>💬 Sessions</h2>
+      <button onclick="createSession()">+ New Session</button>
+      <ul id="sessionList"></ul>
+
+      <!-- Mode Switch -->
+      <div class="mode-switch">
+        <label for="modeSelect">Chat Mode:</label>
+        <select id="modeSelect" onchange="switchModeFromUI()">
+          <option value="local">Local</option>
+          <option value="global">Global</option>
+        </select>
+      </div>
+    </aside>
+
+    <!-- Main Chat Area -->
+    <main class="chat-area">
+      <!-- Header -->
+      <header class="chat-header">
+        <h1>🤖 AI Chatbot</h1>
+      </header>
+
+      <!-- Chat Window -->
+      <div id="chatWindow" class="chat-window"></div>
+
+      <!-- Upload & Search Tools -->
+      <div class="tools">
+        <div class="tool-group">
+          <label>Upload Document:</label>
+          <input type="file" id="uploadFile">
+          <button onclick="uploadDocument()">Upload</button>
+        </div>
+        <div class="tool-group">
+          <label>Search Docs:</label>
+          <input type="text" id="docQuery" placeholder="Keyword">
+          <button onclick="searchDocuments()">Search</button>
+        </div>
+        <div class="tool-group">
+          <label>Search Chat:</label>
+          <input type="text" id="chatQuery" placeholder="Keyword">
+          <button onclick="searchChat()">Search</button>
+        </div>
+      </div>
+
+      <!-- Chat Input -->
+      <div class="chat-input">
+        <input type="text" id="questionInput" placeholder="Type your message...">
+        <button onclick="askQuestion()">Send</button>
+      </div>
+    </main>
+  </div>
+
+  <script src="{{ url_for('static', filename='script.js') }}"></script>
+</body>
+</html>
