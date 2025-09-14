@@ -11,15 +11,33 @@
     <aside class="sidebar">
       <h2>💬 Sessions</h2>
       <button onclick="createSession()">+ New Session</button>
-      <ul id="sessionList"></ul>
 
-      <!-- Mode Switch -->
-      <div class="mode-switch">
-        <label for="modeSelect">Chat Mode:</label>
-        <select id="modeSelect" onchange="switchModeFromUI()">
-          <option value="local">Local</option>
-          <option value="global">Global</option>
-        </select>
+      <!-- Upload Document -->
+      <div class="tool-upload">
+        <h3>📄 Upload Document</h3>
+        <input type="file" id="uploadFile">
+        <button onclick="uploadDocument()">Upload</button>
+      </div>
+
+      <!-- Search Documents -->
+      <div class="tool-search-docs">
+        <h3>🔍 Search Documents</h3>
+        <input type="text" id="docQuery" placeholder="Enter keyword">
+        <button onclick="searchDocuments()">Search Docs</button>
+      </div>
+
+      <!-- Search Chat -->
+      <div class="tool-search-chat">
+        <h3>💬 Search Chat</h3>
+        <input type="text" id="chatQuery" placeholder="Enter keyword">
+        <button onclick="searchChat()">Search Chat</button>
+      </div>
+
+      <button onclick="toggleSessionList()">📂 Show/Hide Sessions</button>
+
+      <!-- Collapsible Session Box -->
+      <div id="sessionBox" class="session-box hidden">
+        <ul id="sessionList"></ul>
       </div>
     </aside>
 
@@ -27,36 +45,21 @@
     <main class="chat-area">
       <!-- Header -->
       <header class="chat-header">
-        <h1>🤖 AI Chatbot</h1>
+        <h2>🤖 AI Chatbot</h2>
       </header>
 
       <!-- Chat Window -->
       <div id="chatWindow" class="chat-window"></div>
 
-      <!-- Upload & Search Tools -->
-      <div class="tools">
-        <div class="tool-group">
-          <label>Upload Document:</label>
-          <input type="file" id="uploadFile">
-          <button onclick="uploadDocument()">Upload</button>
-        </div>
-        <div class="tool-group">
-          <label>Search Docs:</label>
-          <input type="text" id="docQuery" placeholder="Keyword">
-          <button onclick="searchDocuments()">Search</button>
-        </div>
-        <div class="tool-group">
-          <label>Search Chat:</label>
-          <input type="text" id="chatQuery" placeholder="Keyword">
-          <button onclick="searchChat()">Search</button>
-        </div>
-      </div>
-
       <!-- Chat Input -->
       <div class="chat-input">
-        <input type="text" id="questionInput" placeholder="Type your message...">
-        <button onclick="askQuestion()">Send</button>
+        <div class="input-wrapper">
+          <input type="text" id="chatInput" placeholder="Type your message...">
+          <button id="micBtn" class="mic-btn" onclick="toggleMic()">🎤</button>
+        </div>
+        <button id="sendBtn" onclick="askQuestion()">➤</button>
       </div>
+
     </main>
   </div>
 

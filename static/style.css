@@ -1,176 +1,276 @@
-/* General Layout */
 body {
   margin: 0;
-  font-family: "Segoe UI", Tahoma, sans-serif;
-  height: 100vh;
-  display: flex;
-  background: #f5f5f5;
+  font-family: Arial, sans-serif;
+  background: #1e1e1e;
+  color: #fff;
 }
 
 .app {
   display: flex;
-  width: 100%;
   height: 100vh;
 }
 
 /* Sidebar */
 .sidebar {
-  width: 260px;
-  background: #202123;
-  color: #fff;
-  padding: 1rem;
-  display: flex;
-  flex-direction: column;
+  width: 280px;
+  background: #2a2a2a;
+  padding: 15px;
+  overflow-y: auto;
+  border-right: 1px solid #444;
 }
 
 .sidebar h2 {
-  font-size: 1.2rem;
-  margin-bottom: 1rem;
+  margin-top: 0;
 }
 
 .sidebar button {
-  background: #343541;
-  color: #fff;
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 10px;
+  background: #444;
   border: none;
-  padding: 0.6rem;
-  margin-bottom: 1rem;
+  color: #fff;
   border-radius: 6px;
   cursor: pointer;
-  transition: background 0.2s;
 }
 
 .sidebar button:hover {
-  background: #444654;
+  background: #666;
 }
 
 #sessionList {
   list-style: none;
   padding: 0;
   margin: 0;
-  flex-grow: 1;
-  overflow-y: auto;
 }
 
 #sessionList li {
-  padding: 0.5rem;
-  border-radius: 4px;
+  display: grid;
+  grid-template-columns: 1fr auto auto;
+  align-items: center;
+  padding: 8px 10px;
+  border-bottom: 1px solid #333;
   cursor: pointer;
 }
 
-#sessionList li:hover {
-  background: #343541;
+.session-header {
+  grid-template-columns: 1fr auto auto;
+  font-weight: bold;
+  background: #444;
+  cursor: default !important;
 }
 
-.mode-switch {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid #444;
+.session-item.active {
+  background: #555 !important;
 }
 
-.mode-switch label {
-  display: block;
-  margin-bottom: 0.5rem;
+.mode-btn, .delete-btn {
+  background: #444;
+  border: none;
+  color: #fff;
+  padding: 3px 8px;
+  border-radius: 4px;
+  cursor: pointer;
+  margin-left: 5px;
+}
+
+.mode-btn:hover {
+  background: #666;
+}
+
+.delete-btn:hover {
+  background: #a33;
 }
 
 /* Chat Area */
 .chat-area {
-  flex-grow: 1;
+  flex: 1;
   display: flex;
   flex-direction: column;
-  background: #ffffff;
 }
 
 .chat-header {
-  background: #f0f0f0;
-  padding: 1rem;
-  border-bottom: 1px solid #ddd;
+  padding: 15px;
+  background: #2a2a2a;
+  border-bottom: 1px solid #444;
 }
 
 .chat-window {
-  flex-grow: 1;
-  padding: 1rem;
+  flex: 1;
+  padding: 20px;
   overflow-y: auto;
-  background: #fff;
+  background: #1e1e1e;
   display: flex;
   flex-direction: column;
 }
 
-/* Messages */
 .message {
-  max-width: 70%;
-  padding: 0.6rem 0.9rem;
-  margin: 0.3rem 0;
+  margin: 8px 0;
+  padding: 10px 15px;
   border-radius: 8px;
+  max-width: 70%;
   white-space: pre-wrap;
+  word-wrap: break-word;
 }
 
 .message.user {
+  background: #3a6ea5;
   align-self: flex-end;
-  background: #0078ff;
-  color: white;
 }
 
 .message.bot {
+  background: #444;
   align-self: flex-start;
-  background: #e5e5ea;
-  color: black;
 }
 
-/* Tools Section */
+/* Tools */
 .tools {
-  background: #f9f9f9;
-  padding: 0.8rem;
-  border-top: 1px solid #ddd;
+  padding: 10px;
+  background: #2a2a2a;
   display: flex;
-  gap: 1rem;
-  flex-wrap: wrap;
+  gap: 20px;
+  border-top: 1px solid #444;
 }
 
-.tool-group {
+.tools div {
   display: flex;
   align-items: center;
-  gap: 0.4rem;
+  gap: 5px;
 }
 
-/* Chat Input */
+/* --- Chat Input (updated like ChatGPT) --- */
 .chat-input {
   display: flex;
-  padding: 0.8rem;
-  border-top: 1px solid #ddd;
-  background: #fafafa;
+  align-items: center;
+  padding: 8px;
+  background: #1e1e1e;
+  border-top: 1px solid #333;
 }
 
-.chat-input input {
-  flex-grow: 1;
-  padding: 0.6rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+.input-wrapper {
+  flex: 1;
+  display: flex;
+  align-items: center;
+  background: #1e1e1e;
+  border: 1px solid #444;
+  border-radius: 20px;
+  padding: 4px 10px;
+}
+
+.input-wrapper input {
+  flex: 1;
+  border: none;
+  background: transparent;
+  color: #fff;
+  font-size: 14px;
+  padding: 8px;
   outline: none;
 }
 
-.chat-input button {
-  background: #0078ff;
-  color: #fff;
+.input-wrapper input::placeholder {
+  color: #aaa;
+}
+
+.mic-btn {
+  background: transparent;
   border: none;
-  padding: 0.6rem 1rem;
-  margin-left: 0.5rem;
-  border-radius: 6px;
+  color: #ccc;
+  font-size: 18px;
   cursor: pointer;
-  transition: background 0.2s;
+  margin-left: 5px;
 }
 
-.chat-input button:hover {
-  background: #005fcc;
+.mic-btn:hover {
+  color: #0b93f6;
 }
 
-/* Scrollbars */
-.chat-window::-webkit-scrollbar,
-#sessionList::-webkit-scrollbar {
-  width: 6px;
+.mic-btn.listening {
+  color: red;
+  animation: pulse 1s infinite;
 }
 
-.chat-window::-webkit-scrollbar-thumb,
-#sessionList::-webkit-scrollbar-thumb {
-  background: #bbb;
-  border-radius: 3px;
+@keyframes pulse {
+  0% { text-shadow: 0 0 5px red; }
+  50% { text-shadow: 0 0 15px red; }
+  100% { text-shadow: 0 0 5px red; }
+}
+
+#sendBtn {
+  margin-left: 8px;
+  padding: 8px 16px;
+  font-size: 14px;
+  border: none;
+  border-radius: 20px;
+  background: #0b93f6;
+  color: white;
+  cursor: pointer;
+  transition: background 0.3s;
+}
+
+#sendBtn:hover {
+  background: #0078e7;
+}
+
+/* Session Box (collapsible container) */
+.session-box {
+  margin-top: 10px;
+  background: #222;
+  border: 1px solid #444;
+  border-radius: 6px;
+  max-height: 300px;
+  overflow-y: auto;
+  transition: all 0.3s ease-in-out;
+  padding: 5px;
+}
+
+.session-box.hidden {
+  display: none;
+}
+
+/* Sidebar Tools */
+.sidebar .tool-upload,
+.sidebar .tool-search-docs,
+.sidebar .tool-search-chat {
+  background: #333;
+  padding: 10px;
+  margin-bottom: 10px;
+  border-radius: 6px;
+  border: 1px solid #444;
+}
+
+.sidebar .tool-upload h3,
+.sidebar .tool-search-docs h3,
+.sidebar .tool-search-chat h3 {
+  margin: 0 0 5px 0;
+  font-size: 14px;
+  color: #ccc;
+}
+
+.sidebar .tool-upload input,
+.sidebar .tool-search-docs input,
+.sidebar .tool-search-chat input {
+  width: calc(100% - 10px);
+  padding: 6px;
+  border-radius: 4px;
+  border: none;
+  outline: none;
+  margin-bottom: 5px;
+}
+
+.sidebar .tool-upload button,
+.sidebar .tool-search-docs button,
+.sidebar .tool-search-chat button {
+  width: 100%;
+  padding: 6px;
+  border-radius: 4px;
+  border: none;
+  background: #3a6ea5;
+  color: #fff;
+  cursor: pointer;
+}
+
+.sidebar .tool-upload button:hover,
+.sidebar .tool-search-docs button:hover,
+.sidebar .tool-search-chat button:hover {
+  background: #2d4f73;
 }

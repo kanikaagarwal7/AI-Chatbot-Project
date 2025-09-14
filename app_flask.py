@@ -67,16 +67,17 @@ def create_session():
     """Create a new chat session"""
     data = request.json
     session_id = str(uuid.uuid4())
-    session_description = data.get("description", "No description")
+    session_description = data.get("description", f"Session {session_id[:6]}")
 
     session_collection.insert_one({
         "_id": session_id,
         "description": session_description,
         "created_at": datetime.now(timezone.utc),
         "documents": [],
-        "chat_history": []
+        "chat_history": [],
+        "mode": "local"  # default mode
     })
-    return jsonify({"session_id": session_id, "message": "Session created"}), 201
+    return jsonify({"session_id": session_id, "message": "Session created", "description": session_description}), 201
 
 
 # 📌 Route 2: List all sessions
@@ -87,8 +88,6 @@ def list_sessions():
     for s in sessions:
         s["_id"] = str(s["_id"])
     return jsonify(sessions)
-
-
 
 
 # 📌 Route 3: Upload a document (txt/pdf/docx)
@@ -161,6 +160,7 @@ def upload_document():
         "gridfs_id": str(file_id)
     })
 
+
 # 📌 Route 4: Ask a question (local docs or global knowledge)
 @app.route("/ask", methods=["POST"])
 def ask_question():
@@ -168,7 +168,7 @@ def ask_question():
     data = request.json
     session_id = data.get("session_id")
     question = data.get("question")
-    mode = data.get("mode", "local")
+    mode = data.get("mode")  # frontend will send mode
 
     session = session_collection.find_one({"_id": session_id})
     if not session:
@@ -242,12 +242,11 @@ def ask_question():
 
     return jsonify({"answer": response})
 
+
 # 📌 Route 5: Get Full Chat History
 @app.route("/chat/history", methods=["POST"])
 def get_chat_history():
-    """
-    Get all chat history for a given session_id
-    """
+    """Get all chat history for a given session_id"""
     data = request.json
     session_id = data.get("session_id")
 
@@ -265,37 +264,31 @@ def get_chat_history():
         "chat_history": history
     })
 
-# 📌 Route 6: Switch Chat Mode
-@app.route("/chat/switch_mode", methods=["POST"])
-def switch_mode():
-    """
-    Switch chatbot mode for a session (local or global)
-    """
-    data = request.json
+
+# 📌 Route 6: Toggle Mode for a session
+@app.route("/session/toggle_mode", methods=["POST"])
+def toggle_mode():
+    """Toggle session mode between 'local' and 'global'"""
+    data = request.get_json()
     session_id = data.get("session_id")
-    mode = data.get("mode")   # should be "local" or "global"
 
-    if not session_id or not mode:
-        return jsonify({"error": "Missing session_id or mode"}), 400
-
-    if mode not in ["local", "global"]:
-        return jsonify({"error": "Invalid mode. Use 'local' or 'global'."}), 400
+    if not session_id:
+        return jsonify({"success": False, "message": "Missing session_id"}), 400
 
     session = session_collection.find_one({"_id": session_id})
     if not session:
-        return jsonify({"error": "Session not found"}), 404
+        return jsonify({"success": False, "message": "Session not found"}), 404
 
-    # Update session with current mode
+    current_mode = session.get("mode", "local")
+    new_mode = "global" if current_mode == "local" else "local"
+
     session_collection.update_one(
         {"_id": session_id},
-        {"$set": {"current_mode": mode}}
+        {"$set": {"mode": new_mode}}
     )
 
-    return jsonify({
-        "message": f"Mode switched to {mode}",
-        "session_id": session_id,
-        "current_mode": mode
-    })
+    return jsonify({"success": True, "new_mode": new_mode})
+
 
 # 📌 Route 7: Search inside uploaded documents
 @app.route("/search/documents", methods=["POST"])
@@ -362,10 +355,82 @@ def search_chat_api():
 
     return jsonify({"query": query, "matches": matches})
 
+
+# 📌 Route 9: Delete a session
+@app.route("/session/delete", methods=["POST"])
+def delete_session():
+    data = request.get_json()
+    session_id = data.get("session_id")
+
+    if not session_id:
+        return jsonify({"success": False, "message": "Session ID missing"}), 400
+
+    try:
+        result = session_collection.delete_one({"_id": session_id})
+
+        if result.deleted_count > 0:
+            return jsonify({"success": True, "message": "Session deleted"})
+        else:
+            return jsonify({"success": False, "message": "Session not found"}), 404
+    except Exception as e:
+        return jsonify({"success": False, "message": str(e)}), 500
+    
+# 📌 Route 10: to list the documents in the session list
+@app.route("/document/list", methods=["POST"])
+def list_documents():
+    data = request.json
+    session_id = data.get("session_id")
+    if not session_id:
+        return jsonify({"error": "Missing session_id"}), 400
+
+    session = session_collection.find_one({"_id": session_id})
+    if not session:
+        return jsonify({"error": "Session not found"}), 404
+
+    # Assuming you store docs in session like: { "documents": [ { "filename": "x.pdf", "file_id": "..."} ] }
+    docs = session.get("documents", [])
+    return jsonify({"documents": docs})
+
+# 📌 Route 11: to delete the documents from the session list
+@app.route("/document/delete", methods=["POST"])
+def delete_document():
+    data = request.json
+    session_id = data.get("session_id")
+    filename = data.get("filename")
+
+    if not session_id or not filename:
+        return jsonify({"message": "Missing session_id or filename"}), 400
+
+    session = session_collection.find_one({"_id": session_id})
+    if not session:
+        return jsonify({"message": "Session not found"}), 404
+
+    documents = session.get("documents", [])
+    updated_docs = [doc for doc in documents if doc.get("filename") != filename]
+
+    if len(updated_docs) == len(documents):
+        return jsonify({"message": "File not found in session"}), 404
+
+    # ✅ Update session with remaining docs
+    session_collection.update_one(
+        {"_id": session_id}, {"$set": {"documents": updated_docs}}
+    )
+
+    # ✅ Optionally also delete from GridFS
+    for doc in documents:
+        if doc.get("filename") == filename:
+            try:
+                fs.delete(ObjectId(doc["gridfs_id"]))
+            except Exception as e:
+                print("GridFS delete error:", e)
+
+    return jsonify({"message": f"{filename} deleted successfully"})
+
 # Home route
 @app.route("/", methods=["GET"])
 def home():
     return render_template("index.html")
+
 
 # ------------------------------
 # Run Flask App

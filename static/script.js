@@ -1,299 +1,304 @@
 const BASE_URL = "http://127.0.0.1:5000";
 let currentSessionId = null;
 
-// -- Utility helpers ----------------------------------------------------
-function escapeHtml(str = "") {
-  return str.replace(/[&<>"'`=\/]/g, s => ({
-    '&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;', '/':'&#x2F;','`':'&#x60;','=':'&#x3D;'
-  })[s]);
-}
-
-function showAlert(msg) {
-  // simple alert; replace with fancier toast in future
-  alert(msg);
-  console.error(msg);
-}
-
-// Add message bubble
+// Utility to add messages
 function addMessage(role, text) {
   const chatWindow = document.getElementById("chatWindow");
-  if (!chatWindow) return;
   const div = document.createElement("div");
   div.className = `message ${role}`;
-  // preserve newlines
   div.innerText = text;
   chatWindow.appendChild(div);
   chatWindow.scrollTop = chatWindow.scrollHeight;
 }
 
-// Typing indicator
-let typingEl = null;
-function showTyping() {
-  if (typingEl) return;
-  typingEl = document.createElement("div");
-  typingEl.className = "message bot typing";
-  typingEl.innerText = "• • •";
-  document.getElementById("chatWindow").appendChild(typingEl);
-  typingEl.scrollIntoView({ behavior: "smooth" });
-}
-function hideTyping() {
-  if (!typingEl) return;
-  typingEl.remove();
-  typingEl = null;
-}
-
-// -- Sessions & UI state ------------------------------------------------
+// 📌 Create Session
 async function createSession() {
-  // ask user for a description
-  const desc = prompt("Enter session description (optional):", "New session");
-  if (desc === null) return; // user cancelled
-  try {
-    const res = await fetch(`${BASE_URL}/session/create`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ description: desc || "New session" })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Create session failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    currentSessionId = data.session_id;
-    await listSessions();        // refresh list
-    await loadChatHistory();     // load (empty) history
-  } catch (err) {
-    showAlert(err.message || "Failed to create session");
-  }
+  const desc = prompt("Enter session description:", "My Chat Session");
+  if (!desc) return; // user cancelled
+
+  const res = await fetch(`${BASE_URL}/session/create`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ description: desc })
+  });
+
+  const data = await res.json();
+  currentSessionId = data.session_id;
+
+  // Auto-open session box after creating new session
+  document.getElementById("sessionBox").classList.remove("hidden");
+
+  await listSessions();
 }
 
+// 📌 Toggle Session List
+function toggleSessionList() {
+  const box = document.getElementById("sessionBox");
+  box.classList.toggle("hidden");
+}
+
+// 📌 List Sessions
 async function listSessions() {
-  try {
-    const res = await fetch(`${BASE_URL}/session/list`);
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`List sessions failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    renderSessionList(data);
-  } catch (err) {
-    showAlert(err.message || "Failed to list sessions");
-  }
-}
-
-function renderSessionList(sessions) {
+  const res = await fetch(`${BASE_URL}/session/list`);
+  const data = await res.json();
   const list = document.getElementById("sessionList");
   list.innerHTML = "";
-  sessions.forEach(s => {
+
+  // Header row
+  const header = document.createElement("li");
+  header.className = "session-header";
+  header.innerHTML = `<span>Description</span><span>Mode</span><span>Delete</span>`;
+  list.appendChild(header);
+
+  for (const s of data) {
     const li = document.createElement("li");
     li.className = "session-item";
-    li.dataset.id = s._id;
+    if (s._id === currentSessionId) li.classList.add("active");
 
-    // Description and mode badge
+    // Description
     const desc = document.createElement("span");
-    desc.className = "session-desc";
-    desc.innerHTML = escapeHtml(s.description || "(no description)");
-
-    const modeBadge = document.createElement("span");
-    modeBadge.className = "session-mode-badge";
-    modeBadge.innerText = s.current_mode ? s.current_mode.toUpperCase() : "LOCAL";
-
-    li.appendChild(desc);
-    li.appendChild(modeBadge);
-
-    li.onclick = () => {
-      setActiveSession(s._id, s.current_mode || "local");
+    desc.innerText = s.description;
+    desc.onclick = () => {
+      currentSessionId = s._id;
       loadChatHistory();
+      listSessions();
     };
 
-    // highlight active session
-    if (s._id === currentSessionId) {
-      li.classList.add("active");
+    // Mode toggle button
+    const modeBtn = document.createElement("button");
+    modeBtn.innerText = s.mode || "local";
+    modeBtn.className = "mode-btn";
+    modeBtn.onclick = () => {
+      s.mode = (s.mode === "local") ? "global" : "local";
+      modeBtn.innerText = s.mode;
+    };
+
+    // Delete session button
+    const delBtn = document.createElement("button");
+    delBtn.innerText = "🗑";
+    delBtn.className = "delete-btn";
+    delBtn.onclick = async (e) => {
+      e.stopPropagation();
+      if (!confirm("Delete this session?")) return;
+      const res = await fetch(`${BASE_URL}/session/delete`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: s._id })
+      });
+      const result = await res.json();
+      alert(result.message);
+      if (s._id === currentSessionId) {
+        currentSessionId = null;
+        document.getElementById("chatWindow").innerHTML = "";
+      }
+      listSessions();
+    };
+
+    li.appendChild(desc);
+    li.appendChild(modeBtn);
+    li.appendChild(delBtn);
+
+    // 🔹 Documents section under each session
+    const docList = document.createElement("ul");
+    docList.className = "doc-list";
+    li.appendChild(docList);
+
+    // Fetch docs for this session
+    try {
+      const docsRes = await fetch(`${BASE_URL}/document/list`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ session_id: s._id })
+      });
+      const docsData = await docsRes.json();
+
+      docsData.documents.forEach(doc => {
+        const docItem = document.createElement("li");
+        docItem.className = "doc-item";
+        docItem.innerText = doc.filename;
+
+        // ✅ Fixed delete button (uses filename instead of file_id)
+        const docDelBtn = document.createElement("button");
+        docDelBtn.innerText = "❌";
+        docDelBtn.onclick = async () => {
+          const res = await fetch(`${BASE_URL}/document/delete`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ session_id: s._id, filename: doc.filename })
+          });
+          const result = await res.json();
+          alert(result.message);
+          listSessions(); // reload after delete
+        };
+
+        docItem.appendChild(docDelBtn);
+        docList.appendChild(docItem);
+      });
+    } catch (err) {
+      console.error("Error fetching documents:", err);
     }
 
     list.appendChild(li);
-  });
-}
-
-function setActiveSession(sessionId, mode = "local") {
-  currentSessionId = sessionId;
-  // update UI highlight
-  document.querySelectorAll("#sessionList .session-item").forEach(el => {
-    el.classList.toggle("active", el.dataset.id === sessionId);
-  });
-  // set mode dropdown if exists
-  const modeSelect = document.getElementById("modeSelect");
-  if (modeSelect) modeSelect.value = mode;
-}
-
-// -- Chat history / ask -------------------------------------------------
-async function loadChatHistory() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  try {
-    const res = await fetch(`${BASE_URL}/chat/history`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: currentSessionId })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Load history failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    const chatWindow = document.getElementById("chatWindow");
-    chatWindow.innerHTML = "";
-    if (!data.chat_history || data.chat_history.length === 0) {
-      addMessage("bot", "(No chat history)");
-      return;
-    }
-    data.chat_history.forEach(c => {
-      addMessage("user", c.question);
-      addMessage("bot", c.answer);
-    });
-  } catch (err) {
-    showAlert(err.message || "Failed to load chat history");
   }
 }
 
+// 📌 Upload Document
+async function uploadDocument() {
+  if (!currentSessionId) return alert("Select a session first");
+  const file = document.getElementById("uploadFile").files[0];
+  if (!file) return alert("Choose a file");
+
+  let formData = new FormData();
+  formData.append("session_id", currentSessionId);
+  formData.append("file", file);
+
+  const res = await fetch(`${BASE_URL}/document/upload`, { 
+    method: "POST", 
+    body: formData 
+  });
+  const data = await res.json();
+  alert(data.message);
+
+  // ✅ Auto-refresh session list so the new document appears
+  await listSessions();
+}
+
+// 📌 Ask Question
 async function askQuestion() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  const questionEl = document.getElementById("questionInput");
-  const question = (questionEl.value || "").trim();
+  if (!currentSessionId) return alert("Select a session first");
+  const question = document.getElementById("chatInput").value;
   if (!question) return;
 
-  // show user message and clear input
   addMessage("user", question);
-  questionEl.value = "";
+  document.getElementById("chatInput").value = "";
 
-  try {
-    showTyping();
-    const res = await fetch(`${BASE_URL}/ask`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: currentSessionId, question })
-    });
-    hideTyping();
+  // Get the current mode from the session list
+  const sessionItem = document.querySelector(`.session-item.active`);
+  const mode = sessionItem ? sessionItem.querySelector(".mode-btn").innerText : "local";
 
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Ask failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    // backend returns { answer: ... } normally
-    const answer = data.answer || data;
-    addMessage("bot", String(answer));
-    // update session list (maybe current_mode changed)
-    await listSessions();
-  } catch (err) {
-    hideTyping();
-    addMessage("bot", `⚠️ Error: ${err.message || "Failed to get answer"}`);
-  }
+  const res = await fetch(`${BASE_URL}/ask`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: currentSessionId, question, mode })
+  });
+  const data = await res.json();
+  addMessage("bot", data.answer);
 }
 
-// -- Upload file --------------------------------------------------------
-async function uploadDocument() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  const file = document.getElementById("uploadFile").files[0];
-  if (!file) return showAlert("Choose a file to upload");
-
-  try {
-    let formData = new FormData();
-    formData.append("session_id", currentSessionId);
-    formData.append("file", file);
-
-    const res = await fetch(`${BASE_URL}/document/upload`, {
-      method: "POST",
-      body: formData
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Upload failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    showAlert(data.message || "Upload successful");
-    // Optionally reload sessions or history
-    await listSessions();
-  } catch (err) {
-    showAlert(err.message || "Failed to upload document");
-  }
+// 📌 Load Chat History
+async function loadChatHistory() {
+  const res = await fetch(`${BASE_URL}/chat/history`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: currentSessionId })
+  });
+  const data = await res.json();
+  const chatWindow = document.getElementById("chatWindow");
+  chatWindow.innerHTML = "";
+  data.chat_history.forEach(c => {
+    addMessage("user", c.question);
+    addMessage("bot", c.answer);
+  });
 }
 
-// -- Switch Mode (UI) ---------------------------------------------------
-async function switchModeFromUI() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  const mode = document.getElementById("modeSelect").value;
-  try {
-    const res = await fetch(`${BASE_URL}/chat/switch_mode`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: currentSessionId, mode })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Switch mode failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    showAlert(data.message || `Mode changed to ${mode}`);
-    await listSessions();
-  } catch (err) {
-    showAlert(err.message || "Failed to switch mode");
-  }
-}
-
-// -- Search docs / chat -------------------------------------------------
+// 📌 Search Documents
 async function searchDocuments() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  const query = (document.getElementById("docQuery").value || "").trim();
-  if (!query) return showAlert("Enter a keyword to search in documents");
-  try {
-    const res = await fetch(`${BASE_URL}/search/documents`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: currentSessionId, q: query })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Doc search failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    const matches = data.matches || [];
-    if (matches.length === 0) addMessage("bot", "No document matches found.");
-    else addMessage("bot", `Document matches:\n${matches.join("\n\n")}`);
-  } catch (err) {
-    showAlert(err.message || "Failed to search documents");
-  }
+  if (!currentSessionId) return alert("Select a session first");
+  const query = document.getElementById("docQuery").value;
+  const res = await fetch(`${BASE_URL}/search/documents`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: currentSessionId, q: query })
+  });
+  const data = await res.json();
+  addMessage("bot", "Doc Search Results:\n" + data.matches.join("\n"));
 }
 
+// 📌 Search Chat
 async function searchChat() {
-  if (!currentSessionId) return showAlert("Select a session first");
-  const query = (document.getElementById("chatQuery").value || "").trim();
-  if (!query) return showAlert("Enter a keyword to search in chat");
-  try {
-    const res = await fetch(`${BASE_URL}/search/chat`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ session_id: currentSessionId, q: query })
-    });
-    if (!res.ok) {
-      const t = await res.text();
-      throw new Error(`Chat search failed: ${res.status} ${t}`);
-    }
-    const data = await res.json();
-    const matches = data.matches || [];
-    if (matches.length === 0) addMessage("bot", "No chat matches found.");
-    else {
-      const pretty = matches.map(m => `Q: ${m.question}\nA: ${m.answer}`).join("\n\n");
-      addMessage("bot", `Chat search results:\n${pretty}`);
-    }
-  } catch (err) {
-    showAlert(err.message || "Failed to search chat");
+  if (!currentSessionId) return alert("Select a session first");
+  const query = document.getElementById("chatQuery").value;
+  const res = await fetch(`${BASE_URL}/search/chat`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ session_id: currentSessionId, q: query })
+  });
+  const data = await res.json();
+  addMessage("bot", "Chat Search Results:\n" + JSON.stringify(data.matches, null, 2));
+}
+
+// Load sessions on startup
+listSessions();
+
+let recognition;
+let isListening = false;
+
+if ('webkitSpeechRecognition' in window) {
+  recognition = new webkitSpeechRecognition();
+  recognition.continuous = false;
+  recognition.interimResults = false;
+  recognition.lang = "en-US";
+
+  recognition.onresult = function(event) {
+    const transcript = event.results[0][0].transcript;
+    document.getElementById("chatInput").value = transcript;
+    askQuestion(); // auto-send when speech captured
+  };
+
+  recognition.onerror = function(event) {
+    console.error("Speech recognition error:", event.error);
+    stopMic();
+  };
+
+  recognition.onend = function() {
+    stopMic(); // reset button when finished
+  };
+}
+
+function toggleMic() {
+  if (!recognition) {
+    alert("Speech recognition not supported in this browser.");
+    return;
+  }
+  if (!isListening) {
+    startMic();
+  } else {
+    stopMic();
   }
 }
 
-// -- Init on load -------------------------------------------------------
-window.addEventListener("load", () => {
-  // Wire modeSelect change to switchMode function (if not wired in HTML)
-  const modeSelect = document.getElementById("modeSelect");
-  if (modeSelect) modeSelect.addEventListener("change", switchModeFromUI);
+function startMic() {
+  recognition.start();
+  isListening = true;
+  document.getElementById("micBtn").classList.add("listening");
+}
 
-  listSessions().catch(e => console.warn("Initial listSessions error:", e));
+function stopMic() {
+  recognition.stop();
+  isListening = false;
+  document.getElementById("micBtn").classList.remove("listening");
+}
+
+// 📌 Send message when pressing Enter
+document.getElementById("chatInput").addEventListener("keydown", function(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault(); // prevents newline
+    askQuestion();
+  }
+});
+
+// 📌 Auto-expand textarea
+const textarea = document.getElementById("chatInput");
+
+textarea.addEventListener("input", function () {
+  this.style.height = "auto"; // reset
+  this.style.height = (this.scrollHeight) + "px"; // expand
+});
+
+// 📌 Enter key = Send, Shift+Enter = new line
+textarea.addEventListener("keydown", function(event) {
+  if (event.key === "Enter" && !event.shiftKey) {
+    event.preventDefault();
+    askQuestion();
+  }
 });
